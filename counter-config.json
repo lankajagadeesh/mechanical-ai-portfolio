@@ -1,5 +1,5 @@
 {
-  "enabled": false,
-  "siteCode": "",
-  "allowedHostnames": []
+  "enabled": true,
+  "siteCode": "jagadeesh-portfolio",
+  "allowedHostnames": ["lankajagadeesh.github.io"]
 }

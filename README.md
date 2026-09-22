@@ -17,7 +17,7 @@ Live site: https://lankajagadeesh.github.io/mechanical-ai-portfolio/
 
 Run `node preview.mjs` in this folder, then open http://127.0.0.1:4173. No package install or build step is required. Use HTTP rather than opening index.html directly so browser modules and mesh data load correctly.
 
-The site uses relative asset paths and can run beneath a GitHub Pages repository path. It bundles runtime libraries and fonts locally. The optional shared visitor counter is disabled until a GoatCounter site is connected; it does not show a simulated count.
+The site uses relative asset paths and can run beneath a GitHub Pages repository path. It bundles runtime libraries and fonts locally. The shared visitor counter connects to jagadeesh-portfolio.goatcounter.com only on lankajagadeesh.github.io. Local previews do not record visits. The displayed total comes from GoatCounter and may take up to four hours to update; it is never simulated.
 
 ## Interaction and access
 
