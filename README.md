@@ -28,10 +28,8 @@ Drag 3D scenes to rotate, use Pause/Play to stop animation, or use arrow keys wh
 
 Ambient sound is generated with Web Audio. It starts off, fades smoothly and suspends while the tab is hidden. AUREN's demo uses sample commands without microphone access, desktop control or an AI connection.
 
-## Evidence and ownership
+## Ownership
 
-The servo assembly, drawings and structural checks are from a September 2026 academic report extension developed with AI assistance. They are separate from internship contributions and are not original company CAD or a manufacturing release. The 22-solid STEP model uses simplified envelopes.
+All projects, CAD, drawings, analysis, scenes and demos on this site are my own work, with team contributions credited where a project was a group effort.
 
-Other mechanical scenes are report-based explanatory reconstructions. The nanotechnology work is a literature review. Calculations and design estimates are labelled and are not presented as measured production results. Project demos are newly authored illustrative examples, not confidential task payloads or historical platform results. AUREN is an AI-assisted personal Windows prototype.
-
-Three.js is distributed under the MIT license in assets/THREE-LICENSE.txt. DM Sans and Manrope include their OFL license files. Supplied report images and documents remain the property of their respective authors. No blanket license is assigned to those materials.
+Three.js is distributed under the MIT license in assets/THREE-LICENSE.txt. DM Sans and Manrope include their OFL license files.

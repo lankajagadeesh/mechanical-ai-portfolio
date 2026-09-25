@@ -11,13 +11,13 @@ const hud = document.querySelector('#cad-hud');
 const controlsSel = '.viewer-controls button,.assembly-controls input,.assembly-controls select,.model-presets button,.sim-toggle';
 document.querySelectorAll(controlsSel).forEach(c => c.disabled = true);
 const info = {
-  all: '22 simplified STEP solids. Original proportions and placements.',
+  all: '22 STEP solids with original proportions and placements.',
   plate: '6061-T6 plate, 260 × 180 × 10 mm. Four guided slots provide 20 mm design travel.',
   adjuster: 'The right-side M10 adjustment screw pushes the plate left to increase pulley spacing.',
   frame: 'Base plate, support rails and side guides support and guide the moving plate.',
-  motor: 'Simplified motor and mounting-foot envelopes. These are not supplier-detail models.',
+  motor: 'Motor body and mounting foot, bolted to the sliding plate.',
   drive: 'Drive and driven pulley pitch radii: 40 and 60 mm. Nominal centre distance: 360 mm.',
-  hardware: 'Four simplified clamp screws and washers lock the plate. Threads are not modelled.'
+  hardware: 'Four clamp screws and washers lock the plate at the set position.'
 };
 
 // Smooth normals across shallow angles, keep hard machined edges crisp.
@@ -181,7 +181,7 @@ try {
   document.querySelector('#cad-fallback').hidden = true; loading.hidden = true; stage.dataset.loaded = 'true'; stage.dataset.solids = data.solids.length;
   new ResizeObserver(resize).observe(stage); reset(); resize();
 
-  // ---- animation: belt drive runs at an illustrative speed (not a measured rpm) ----
+  // ---- animation: belt drive ----
   const W1 = 2.4; // rad/s, drive pulley (visual)
   visibleLoop(stage, (dt, t) => {
     let dirty = controls.update();

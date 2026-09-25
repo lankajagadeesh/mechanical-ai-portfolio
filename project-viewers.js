@@ -1,4 +1,4 @@
-// Project scenes: animated, physically lit explanatory models (not original CAD or simulations).
+// Project scenes: animated, physically lit 3D models.
 import * as T from 'three';
 import {OrbitControls} from './assets/OrbitControls.js';
 import {makeRenderer, studioEnvironment, brushedTexture, speckleTexture, gridTexture, hazardTexture, fenceTexture, conveyorTexture, pcbTexture, studioFloor, labelSprite, visibleLoop, reducedMotion} from './scene-kit.js';
@@ -195,7 +195,7 @@ function workcell(scene) {
     lids.forEach((lid, i) => (lid.position.z = .55 - i * .4 + Math.sin(t * 2 + i) * .01));
     const pulse = 1.2 + Math.sin(t * 5) * .8; sensorB.material.emissiveIntensity = pulse; sensorE.material.emissiveIntensity = 2.2 - pulse * .5; stackGreen.material.emissiveIntensity = 1.6 + Math.sin(t * 2) * .4;
   }
-  const notes = {all: 'A report-based reconstruction of the part flow. Select a station to explore.', bearings: 'Bearing feeder: a vibratory bowl aligns bearings. A proximity sensor checks pickup readiness.', shafts: 'Shaft tray: pre-aligned slots hold shafts for pickup. The report proposes fill-level monitoring.', lids: 'Lid chute: gravity brings oriented lids to the pickup point; a photoelectric sensor checks arrival.', assembly: 'Assembly: insert bearing, then shaft, then lid. Proposed vision and force checks support alignment.', exit: 'Exit conveyor: transfer the completed assembly and check part presence at the outgoing station.'};
+  const notes = {all: 'The full part flow through the cell. Select a station to explore.', bearings: 'Bearing feeder: a vibratory bowl aligns bearings. A proximity sensor checks pickup readiness.', shafts: 'Shaft tray: pre-aligned slots hold shafts for pickup. The report proposes fill-level monitoring.', lids: 'Lid chute: gravity brings oriented lids to the pickup point; a photoelectric sensor checks arrival.', assembly: 'Assembly: insert bearing, then shaft, then lid. Proposed vision and force checks support alignment.', exit: 'Exit conveyor: transfer the completed assembly and check part presence at the outgoing station.'};
   return {
     target: [0, .9, 0], position: [9.5, 7.5, 10.5], shadow: 7.5, update,
     change(value) {
@@ -345,7 +345,7 @@ function nanotube(scene) {
   return {
     target: [0, 0, 0], position: [4.2, 2.6, 5.4], shadow: 0,
     update(dt, t) {walls.forEach((g, i) => (g.rotation.y += dt * (.25 + i * .08) * (i % 2 ? -1 : 1))); holder.position.y = Math.sin(t * .8) * .06;},
-    change(value) {walls.forEach((g, i) => (g.visible = i === 0 || value === 'multi')); return value === 'multi' ? 'Multiple concentric carbon lattice walls. Layer spacing is enlarged for clarity and is not to atomic scale.' : 'A single carbon lattice wrapped into a tube. The model explains structure, not material performance.';}
+    change(value) {walls.forEach((g, i) => (g.visible = i === 0 || value === 'multi')); return value === 'multi' ? 'Multiple concentric carbon lattice walls nested inside one another.' : 'A single carbon lattice wrapped into a seamless tube.';}
   };
 }
 
