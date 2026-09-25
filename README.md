@@ -6,12 +6,15 @@ Live site: https://lankajagadeesh.github.io/mechanical-ai-portfolio/
 
 ## Explore
 
-- Four interactive 3D scenes, including a mesh generated from the supplied simplified STEP assembly.
+- A cinematic dark "lab" theme with an intro loader, animated backdrop, skills marquee, toolkit grid and scroll reveals.
+- A physically lit hero assembly tessellated from the R1 STEP file: studio reflections, soft shadows, PBR metal and paint, a running timing belt and a live tension-travel simulation that redraws the belt as the plate slides.
+- Three animated project scenes: a robotic work cell running a pick-and-place sequence, a TurtleBot-style robot with a spinning LiDAR and live ±15° front-sector check, and an iridescent single- and multi-wall carbon nanotube.
 - Fifteen illustrative project demos and a playable sorting mini-game.
-- Scroll-linked assembly exploration with manual inspection controls.
 - A separate AUREN voice-assistant prototype story and sample command walkthrough.
 - Optional locally generated ambient sound, off until enabled, with volume control.
 - Downloadable revised resume and technical drawings.
+
+Files: `cinematic.css` (theme, layered over `style.css` and `theme.css`), `fx.js` (page motion), `scene-kit.js` (shared lighting, textures and render loop), `viewer.js` (hero assembly), `project-viewers.js` (project scenes). 3D scenes only render while on screen, and all motion stops when the visitor prefers reduced motion.
 
 ## Run locally
 
@@ -21,7 +24,7 @@ The site uses relative asset paths and can run beneath a GitHub Pages repository
 
 ## Interaction and access
 
-Drag 3D scenes to rotate, or use arrow keys while the scene has focus. Plus/minus zoom and R resets. Assembly controls include top/front views, component highlighting and separated parts. Manual interaction pauses the scroll tour. Native controls, text alternatives and live descriptions support keyboard use. Reduced-motion preferences disable automatic visual motion. WebGL failure retains explanatory still images.
+Drag 3D scenes to rotate, use Pause/Play to stop animation, or use arrow keys while the scene has focus. Plus/minus zoom and R resets. Assembly controls include top/front views, component highlighting and separated parts. Manual interaction pauses the scroll tour. Native controls, text alternatives and live descriptions support keyboard use. Reduced-motion preferences disable automatic visual motion. WebGL failure retains explanatory still images.
 
 Ambient sound is generated with Web Audio. It starts off, fades smoothly and suspends while the tab is hidden. AUREN's demo uses sample commands without microphone access, desktop control or an AI connection.
 

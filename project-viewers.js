@@ -1,61 +1,393 @@
+// Project scenes: animated, physically lit explanatory models (not original CAD or simulations).
 import * as T from 'three';
 import {OrbitControls} from './assets/OrbitControls.js';
-import {RoomEnvironment} from './assets/RoomEnvironment.js';
-const silver=new T.MeshStandardMaterial({color:0xaac0d9,metalness:.65,roughness:.3});
-const blue=new T.MeshStandardMaterial({color:0x397cce,metalness:.6,roughness:.32});
-const dark=new T.MeshStandardMaterial({color:0x26374c,metalness:.45,roughness:.4});
-const rubber=new T.MeshStandardMaterial({color:0x101923,roughness:.8});
-function box(g,x,y,z,w,h,d,mat=dark){const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);g.add(m);return m}
-function cylinder(g,x,y,z,r,h,mat=silver,inner=0){let geom;if(inner){const shape=new T.Shape();shape.absarc(0,0,r,0,Math.PI*2,false);const hole=new T.Path();hole.absarc(0,0,inner,0,Math.PI*2,true);shape.holes.push(hole);geom=new T.ExtrudeGeometry(shape,{depth:h,bevelEnabled:false,curveSegments:32});geom.rotateX(-Math.PI/2);geom.translate(0,-h/2,0);}else geom=new T.CylinderGeometry(r,r,h,32);const m=new T.Mesh(geom,mat);m.position.set(x,y,z);g.add(m);return m}
-function link(g,a,b,r,mat=blue){const start=new T.Vector3(...a),end=new T.Vector3(...b),delta=end.clone().sub(start);const m=new T.Mesh(new T.CylinderGeometry(r,r,delta.length(),12),mat);m.position.copy(start.add(end).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),delta.normalize());g.add(m);return m}
-function label(g,text,x,y,z){const c=document.createElement('canvas');c.width=512;c.height=80;const ctx=c.getContext('2d');ctx.fillStyle='#121d2ce8';ctx.fillRect(0,0,512,80);ctx.font='500 30px Arial';ctx.textAlign='center';ctx.fillStyle='#d5e7ff';ctx.fillText(text,256,51);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const spr=new T.Sprite(new T.SpriteMaterial({map:tex,depthTest:false}));spr.position.set(x,y,z);spr.scale.set(2.5,.39,1);g.add(spr);return spr}
-function workcell(scene){
- const root=new T.Group();scene.add(root);box(root,0,-.14,0,11,.25,8.5);const groups={};for(const k of ['bearings','shafts','lids','assembly','exit']){groups[k]=new T.Group();root.add(groups[k]);}
- const robot=new T.Group();root.add(robot);cylinder(robot,0,.2,0,.65,.4);cylinder(robot,0,.75,0,.42,.7,blue);link(robot,[0,.8,0],[.3,2.5,.1],.28);link(robot,[.3,2.5,.1],[.2,2.1,1.6],.23);cylinder(robot,.3,2.5,.1,.33,.5,dark);link(robot,[.2,2.1,1.6],[.2,1.6,1.8],.16,silver);box(robot,.2,1.4,1.8,.5,.25,.35,silver);box(robot,0,1.15,1.8,.1,.5,.15);box(robot,.4,1.15,1.8,.1,.5,.15);
- const b=groups.bearings;cylinder(b,-3,.75,-.2,1.1,1.4,dark);cylinder(b,-3,1.55,-.2,1.12,.2,silver,.83);for(let i=0;i<9;i++){const a=i/9*Math.PI*2;cylinder(b,-3+.75*Math.cos(a),1.59,-.2+.75*Math.sin(a),.14,.12,silver,.07);}box(b,-1.9,1.4,.2,1.2,.12,.45,silver);label(b,'BEARING FEEDER',-3,2.4,-.2);
- const sh=groups.shafts;box(sh,3,.7,0,2,.2,1.7);for(const x of [2.5,3,3.5])for(const z of [-.5,0,.5]){cylinder(sh,x,1,z,.1,.5);cylinder(sh,x,.91,z,.16,.13)}label(sh,'SHAFT TRAY',3,1.95,0);
- const lids=groups.lids;box(lids,0,1,-2.5,1.4,1.8,.2);const chute=box(lids,0,1.75,-2,1.3,.12,2.5,silver);chute.rotation.x=.38;for(let i=0;i<4;i++){const lid=cylinder(lids,0,1.47+i*.19,-1.2-i*.46,.4,.08,blue,.12);lid.rotation.x=.38;}label(lids,'LID CHUTE',0,3,-2.5);
- const assembly=groups.assembly;box(assembly,0,.6,2.25,1.5,1.1,1.15);box(assembly,0,1.2,2.25,.65,.32,.65,silver);cylinder(assembly,0,1.41,2.25,.16,.09,dark,.075);cylinder(assembly,0,1.6,2.25,.075,.35);box(assembly,.8,1.1,2.1,.16,.2,.3,blue);label(assembly,'ASSEMBLY',-.7,2,3.35);
- const ex=groups.exit;box(ex,3,1,2.75,3.5,.3,1.2);for(let i=0;i<11;i++){const roller=cylinder(ex,1.5+i*.28,1.16,2.75,.09,1.05,silver);roller.rotation.x=Math.PI/2;}box(ex,3.7,1.4,2.75,.6,.3,.6,blue);label(ex,'EXIT',3.5,2,3.5);
- const notes={all:'A report-based reconstruction of the part flow. Select a station to explore.',bearings:'Bearing feeder: a vibratory bowl aligns bearings. A proximity sensor checks pickup readiness.',shafts:'Shaft tray: pre-aligned slots hold shafts for pickup. The report proposes fill-level monitoring.',lids:'Lid chute: gravity brings oriented lids to the pickup point; a photoelectric sensor checks arrival.',assembly:'Assembly: insert bearing, then shaft, then lid. Proposed vision and force checks support alignment.',exit:'Exit conveyor: transfer the completed assembly and check part presence at the outgoing station.'};
- return {target:[0,.8,0],position:[10,10,14],change(value){for(const [k,g] of Object.entries(groups))g.traverse(o=>{if(o.isMesh){if(!o.userData.material)o.userData.material=o.material;o.material=value==='all'||k===value?o.userData.material:rubber;}});return notes[value]}};
+import {makeRenderer, studioEnvironment, brushedTexture, speckleTexture, gridTexture, hazardTexture, fenceTexture, conveyorTexture, pcbTexture, studioFloor, labelSprite, visibleLoop, reducedMotion} from './scene-kit.js';
+
+// ---------- shared materials ----------
+const brushed = brushedTexture(150, 70); brushed.repeat.set(2, 2);
+const speck = speckleTexture(128, 80); speck.repeat.set(4, 4);
+const mat = {
+  yellow: new T.MeshPhysicalMaterial({color: 0xf2b00c, roughness: .34, metalness: .15, clearcoat: .7, clearcoatRoughness: .2, bumpMap: speck, bumpScale: .02}),
+  graphite: new T.MeshStandardMaterial({color: 0x2b3038, roughness: .5, metalness: .55}),
+  black: new T.MeshStandardMaterial({color: 0x121418, roughness: .55, metalness: .3}),
+  steel: new T.MeshStandardMaterial({color: 0xbac2cc, roughness: .24, metalness: 1, roughnessMap: brushed}),
+  chrome: new T.MeshStandardMaterial({color: 0xeef1f5, roughness: .08, metalness: 1}),
+  alu: new T.MeshStandardMaterial({color: 0xd3d8df, roughness: .3, metalness: 1, roughnessMap: brushed}),
+  blue: new T.MeshPhysicalMaterial({color: 0x2b6fd8, roughness: .3, metalness: .6, clearcoat: .5}),
+  orange: new T.MeshPhysicalMaterial({color: 0xe8612a, roughness: .32, metalness: .55, clearcoat: .5}),
+  rubber: new T.MeshStandardMaterial({color: 0x17181b, roughness: .9, metalness: 0}),
+  plastic: new T.MeshStandardMaterial({color: 0x34383f, roughness: .6, metalness: 0, bumpMap: speck, bumpScale: .01}),
+  paintGrey: new T.MeshPhysicalMaterial({color: 0x5b6470, roughness: .45, metalness: .3, clearcoat: .4}),
+  ghost: new T.MeshStandardMaterial({color: 0x3a4250, roughness: .8, transparent: true, opacity: .14, depthWrite: false})
+};
+const glow = (c, i = 2) => new T.MeshStandardMaterial({color: c, emissive: c, emissiveIntensity: i, roughness: .4});
+function add(g, geo, m, x = 0, y = 0, z = 0) {const o = new T.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o;}
+const box = (g, x, y, z, w, h, d, m = mat.graphite) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+const cyl = (g, x, y, z, r, h, m = mat.steel, seg = 40, r2 = r) => add(g, new T.CylinderGeometry(r, r2, h, seg), m, x, y, z);
+function ringGeo(r, inner, h, seg = 48) {
+  const s = new T.Shape(); s.absarc(0, 0, r, 0, Math.PI * 2, false); const hole = new T.Path(); hole.absarc(0, 0, inner, 0, Math.PI * 2, true); s.holes.push(hole);
+  const g = new T.ExtrudeGeometry(s, {depth: h, bevelEnabled: true, bevelSize: h * .15, bevelThickness: h * .15, bevelSegments: 2, curveSegments: seg}); g.rotateX(-Math.PI / 2); g.translate(0, -h / 2, 0); return g;
 }
-function turtlebot(scene){
- const robot=new T.Group();scene.add(robot);for(const y of [.18,.5,.8]){const shelf=cylinder(robot,0,y,0,.38,.06,dark);for(const x of [-.23,.23])for(const z of [-.22,.22])cylinder(robot,x,y+.14,z,.018,.28,silver)}
- for(const x of [-.4,.4]){const wheel=cylinder(robot,x,.18,0,.19,.1,rubber);wheel.rotation.z=Math.PI/2;const hub=cylinder(robot,x,.18,0,.09,.11,silver);hub.rotation.z=Math.PI/2;}box(robot,0,.4,0,.28,.27,.35,blue);cylinder(robot,0,.91,0,.14,.14,rubber);cylinder(robot,0,.98,0,.115,.035,blue);
- const ground=new T.GridHelper(4,16,0x506c8e,0x293e55);ground.position.y=-.03;scene.add(ground);
- const obstacle=box(scene,0,.2,-1.4,.38,.4,.3,silver);
- const positions=[0,.04,0];for(let i=0;i<=30;i++){const angle=(-15+i)*Math.PI/180;positions.push(Math.sin(angle)*1,.04,-Math.cos(angle)*1)}const idx=[];for(let i=1;i<31;i++)idx.push(0,i,i+1);const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setIndex(idx);geo.computeVertexNormals();const sector=new T.Mesh(geo,new T.MeshBasicMaterial({color:0x71aaff,transparent:true,opacity:.27,side:T.DoubleSide}));scene.add(sector);
- const rays=[];for(const a of [-15,0,15]){const p=[new T.Vector3(0,.91,0),new T.Vector3(Math.sin(a*Math.PI/180),.2,-Math.cos(a*Math.PI/180))];const line=new T.Line(new T.BufferGeometry().setFromPoints(p),new T.LineBasicMaterial({color:0x75b0ff}));scene.add(line);rays.push(line)}
- // Visual units: two units per metre for obstacle distance; robot geometry is approximate.
- label(scene,'LiDAR FRONT SECTOR ±15°',0,1.35,-1.3).scale.set(1.75,.27,1);label(scene,'0.5 m THRESHOLD',1.2,.08,-1.1).scale.set(1.15,.18,1);
- return {target:[0,.35,-.6],position:[3,2.6,3],change(value){const distance=Number(value)/100;obstacle.position.z=-distance*2-.15;const blocked=distance<.5;obstacle.material=blocked?blue:silver;sector.material.color.setHex(blocked?0xffb56b:0x71aaff);return blocked?'Obstacle detected: stop, wait 3 seconds, then turn 90° clockwise if the obstacle remains. Check again before moving.':"Path clear: the report's controller commands 0.15 m/s forward motion."}};
+function rounded(w, h, d, r = .06) {
+  const s = new T.Shape(); const x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  const g = new T.ExtrudeGeometry(s, {depth: d, bevelEnabled: true, bevelSize: r * .5, bevelThickness: r * .5, bevelSegments: 3}); g.translate(0, 0, -d / 2); return g;
 }
-function nanotube(scene){
- const layers=[];const r=1.0;const columns=14,rows=9;const circumference=2*Math.PI*r;const a=circumference/(columns*Math.sqrt(3));
- for(let layer=0;layer<3;layer++){const g=new T.Group();scene.add(g);layers.push(g);const radius=r+layer*.28;const edgeMap=new Set();const bonds=[];const pts=new Map();
- for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
-  const cx=Math.sqrt(3)*a*(col+(row%2)*.5),cy=1.5*a*row;
-  const corners=[];for(let j=0;j<6;j++){const ang=(60*j+30)*Math.PI/180;const u=cx+a*Math.cos(ang),v=cy+a*Math.sin(ang);const theta=u/circumference*Math.PI*2;const p=new T.Vector3(radius*Math.cos(theta),v-1.5*a*(rows-1)/2,radius*Math.sin(theta));const key=p.toArray().map(n=>n.toFixed(4)).join(',');pts.set(key,p);corners.push(key)}
-  for(let j=0;j<6;j++){const pair=[corners[j],corners[(j+1)%6]].sort();const key=pair.join('|');if(!edgeMap.has(key)){edgeMap.add(key);bonds.push(...pts.get(pair[0]).toArray(),...pts.get(pair[1]).toArray())}}
- }
- const material=new T.LineBasicMaterial({color:layer===0?0xb5d5ff:layer===1?0x528bd2:0x365a85,transparent:layer>0,opacity:layer>0?.7:1});const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(bonds,3));g.add(new T.LineSegments(geometry,material));
- const spheres=new T.InstancedMesh(new T.SphereGeometry(.035,7,5),layer===0?silver:blue,pts.size);const matrix=new T.Matrix4();let k=0;for(const p of pts.values()){matrix.makeTranslation(p.x,p.y,p.z);spheres.setMatrixAt(k++,matrix)}g.add(spheres);g.rotation.z=Math.PI/2;g.visible=layer===0;
- }
- return {target:[0,0,0],position:[4,3,5],change(value){layers.forEach((g,i)=>g.visible=i===0||value==='multi');return value==='multi'?'Multiple concentric carbon lattice walls. Layer spacing is enlarged for clarity and is not to atomic scale.':'A single carbon lattice wrapped into a tube. The model explains structure, not material performance.'}};
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+// =====================================================================
+// 03 — Robotic work cell: six-axis-style arm running an animated pick-and-place sequence
+// =====================================================================
+function workcell(scene) {
+  const root = new T.Group(); scene.add(root);
+  const groups = {}; for (const k of ['bearings', 'shafts', 'lids', 'assembly', 'exit']) {groups[k] = new T.Group(); root.add(groups[k]);}
+  // floor, hazard tape and guarding
+  const floor = studioFloor({size: 34, color: 0xa5adb8, map: gridTexture({bg: '#262b33', line: '#3a424e', minor: '#2b3139'}), repeat: 8, roughness: .72, fadeInner: .1, fadeOuter: .48});
+  root.add(floor);
+  const tape = hazardTexture(); const tapeMat = new T.MeshStandardMaterial({map: tape, roughness: .6});
+  for (const [x, z, w, d, rot] of [[0, -3.9, 11, .18, 0], [0, 4.1, 11, .18, 0], [-5.5, .1, 8, .18, Math.PI / 2], [5.5, .1, 8, .18, Math.PI / 2]]) {
+    const m = new T.Mesh(new T.PlaneGeometry(w, d), tapeMat.clone()); m.material.map = tape.clone(); m.material.map.repeat.set(w / .7, 1); m.material.map.needsUpdate = true;
+    m.rotation.set(-Math.PI / 2, 0, rot); m.position.set(x, .004, z); m.receiveShadow = true; root.add(m);
+  }
+  const fence = fenceTexture(); fence.repeat.set(6, 3);
+  const fenceMat = new T.MeshStandardMaterial({color: 0x1d2127, metalness: .6, roughness: .4, alphaMap: fence, transparent: true, side: T.DoubleSide, depthWrite: false});
+  const post = new T.MeshPhysicalMaterial({color: 0xf2b00c, roughness: .4, clearcoat: .5});
+  for (let i = 0; i < 4; i++) {const p = new T.Mesh(new T.PlaneGeometry(2.7, 2.1), fenceMat); p.position.set(-4.05 + i * 2.7, 1.15, -4.3); root.add(p); box(root, -5.4 + i * 2.7, 1.1, -4.3, .08, 2.2, .08, post);}
+  box(root, 5.4, 1.1, -4.3, .08, 2.2, .08, post);
+  for (let i = 0; i < 3; i++) {const p = new T.Mesh(new T.PlaneGeometry(2.7, 2.1), fenceMat); p.rotation.y = Math.PI / 2; p.position.set(-5.9, 1.15, -2.95 + i * 2.7); root.add(p); box(root, -5.9, 1.1, -1.6 + i * 2.7, .08, 2.2, .08, post);}
+  // stack light
+  const tower = new T.Group(); tower.position.set(5, 0, -3.6); root.add(tower); cyl(tower, 0, .9, 0, .03, 1.8, mat.graphite);
+  const lamps = [[0x2bd46a, 2], [0xffb020, .15], [0xff3b30, .1]].map(([c, i], k) => cyl(tower, 0, 1.9 + k * .16, 0, .07, .15, glow(c, i)));
+  const stackGreen = lamps[0];
+
+  // ---- robot (FANUC-class 6-axis form, approximate) ----
+  const L1 = 1.9, L2 = 1.8, SH = 1.0, TOOL = .55;
+  const robot = new T.Group(); root.add(robot);
+  cyl(robot, 0, .06, 0, .78, .12, mat.graphite); cyl(robot, 0, .3, 0, .58, .4, mat.yellow, 48);
+  const j1 = new T.Group(); j1.position.y = .5; robot.add(j1);
+  cyl(j1, 0, .18, 0, .52, .36, mat.yellow, 48); box(j1, 0, .45, 0, .6, .5, .75, mat.yellow).geometry = rounded(.62, .55, .72, .12);
+  const motor1 = cyl(j1, -.45, .35, .2, .14, .32, mat.graphite); motor1.rotation.z = Math.PI / 2;
+  const j2 = new T.Group(); j2.position.set(0, SH - .5, 0); j1.add(j2);
+  const hub2 = cyl(j2, 0, 0, .42, .3, .18, mat.graphite); hub2.rotation.x = Math.PI / 2; const cap2 = cyl(j2, 0, 0, .52, .18, .04, mat.steel); cap2.rotation.x = Math.PI / 2;
+  const upper = add(j2, rounded(L1 + .3, .34, .34, .12), mat.yellow, L1 / 2, 0, .2);
+  const j3 = new T.Group(); j3.position.set(L1, 0, 0); j2.add(j3);
+  const hub3 = cyl(j3, 0, 0, .2, .24, .5, mat.graphite); hub3.rotation.x = Math.PI / 2;
+  const fore = add(j3, rounded(L2 + .1, .26, .26, .1), mat.yellow, L2 / 2 - .05, 0, 0);
+  const motor3 = cyl(j3, -.35, 0, 0, .13, .35, mat.graphite); motor3.rotation.z = Math.PI / 2;
+  const wrist = new T.Group(); wrist.position.set(L2, 0, 0); j3.add(wrist);
+  const w1 = cyl(wrist, 0, 0, 0, .14, .28, mat.graphite); w1.rotation.x = Math.PI / 2;
+  const flange = cyl(wrist, .18, 0, 0, .1, .1, mat.steel); flange.rotation.z = Math.PI / 2;
+  const gripper = new T.Group(); gripper.position.set(.26, 0, 0); wrist.add(gripper);
+  box(gripper, .08, 0, 0, .14, .22, .3, mat.black);
+  const fingers = [-1, 1].map(s => box(gripper, .26, 0, s * .08, .22, .06, .04, mat.alu));
+  const tip = new T.Object3D(); tip.position.set(TOOL - .26, 0, 0); gripper.add(tip);
+  void upper; void fore;
+
+  // ---- stations ----
+  const b = groups.bearings; // vibratory bowl feeder
+  cyl(b, -3.2, .35, -.5, .75, .7, mat.paintGrey, 48); cyl(b, -3.2, .74, -.5, .55, .08, mat.graphite);
+  const bowl = add(b, new T.LatheGeometry([[.2, 0], [.85, .02], [1.0, .12], [1.02, .5], [1.08, .52], [1.08, .56], [.98, .56], [.96, .14], [.2, .06]].map(([x, y]) => new T.Vector2(x, y)), 64), new T.MeshStandardMaterial({color: 0xc9d0d8, metalness: 1, roughness: .18, roughnessMap: brushed, side: T.DoubleSide}), -3.2, .8, -.5);
+  const ringsGroup = new T.Group(); ringsGroup.position.set(-3.2, 1.33, -.5); b.add(ringsGroup);
+  const bearingGeo = ringGeo(.1, .05, .06, 32);
+  for (let i = 0; i < 11; i++) {const a = i / 11 * Math.PI * 2; add(ringsGroup, bearingGeo, mat.chrome, .9 * Math.cos(a), 0, .9 * Math.sin(a));}
+  const track = box(b, -2.45, 1.26, -.3, 1.2, .05, .22, mat.steel); track.rotation.y = -.25; track.rotation.z = -.05;
+  const bearingReady = add(b, bearingGeo, mat.chrome, -1.9, 1.33, -.16);
+  const sensorB = box(b, -1.9, 1.5, -.42, .08, .08, .08, glow(0x39ff88, 1.5));
+  const s = groups.shafts; // shaft tray on a table
+  for (const [x, z] of [[1.9, -.9], [3.3, -.9], [1.9, .7], [3.3, .7]]) box(s, x, .4, z, .08, .8, .08, mat.graphite);
+  box(s, 2.6, .83, -.1, 1.7, .06, 1.9, mat.paintGrey); box(s, 2.6, .9, -.1, 1.3, .08, 1.3, mat.alu);
+  const shaftGeo = new T.CylinderGeometry(.055, .055, .5, 24), collarGeo = new T.CylinderGeometry(.09, .09, .1, 24);
+  const shafts = [];
+  for (const x of [2.2, 2.6, 3.0]) for (const z of [-.5, -.1, .3]) {const g = new T.Group(); g.position.set(x, 1.19, z); s.add(g); add(g, shaftGeo, mat.chrome); add(g, collarGeo, mat.chrome, 0, -.17, 0); shafts.push(g);}
+  const l = groups.lids; // gravity lid chute
+  box(l, 0, .8, -3.3, .9, 1.6, .5, mat.paintGrey);
+  const chute = new T.Group(); chute.position.set(0, 1.45, -2.6); chute.rotation.x = .42; l.add(chute);
+  box(chute, 0, 0, 0, .7, .05, 1.6, mat.steel); box(chute, -.37, .08, 0, .04, .16, 1.6, mat.steel); box(chute, .37, .08, 0, .04, .16, 1.6, mat.steel);
+  const lidGeo = ringGeo(.24, .07, .06, 40); const lids = [];
+  for (let i = 0; i < 4; i++) lids.push(add(chute, lidGeo, mat.blue, 0, .06, .55 - i * .4));
+  box(l, 0, .55, -1.95, .8, 1.1, .45, mat.graphite); const lidReady = add(l, lidGeo, mat.blue, 0, 1.14, -1.95);
+  const a = groups.assembly; // fixture
+  box(a, 0, .4, 2.0, 1.1, .8, .9, mat.paintGrey); box(a, 0, .83, 2.0, .8, .06, .7, mat.alu);
+  const baseGeo = rounded(.46, .16, .46, .05); baseGeo.rotateX(Math.PI / 2);
+  const e = groups.exit; // conveyor
+  for (const x of [1.2, 3.0, 4.8]) for (const z of [2.6, 3.2]) box(e, x, .38, z, .07, .76, .07, mat.graphite);
+  box(e, 3, .79, 2.9, 4.0, .1, .75, mat.graphite);
+  const convTex = conveyorTexture(); convTex.repeat.set(10, 1.5);
+  const convBelt = box(e, 3, .86, 2.9, 3.9, .03, .62, new T.MeshStandardMaterial({map: convTex, roughness: .85}));
+  for (const x of [1.02, 4.98]) {const r = cyl(e, x, .81, 2.9, .07, .66, mat.steel); r.rotation.x = Math.PI / 2;}
+  const sensorE = box(e, 4.6, 1.05, 2.5, .08, .12, .08, glow(0x39ff88, 1.5));
+
+  // labels
+  const lab = (g, text, x, y, z) => {const sp = labelSprite(text, {scale: 1.35}); sp.position.set(x, y, z); g.add(sp); return sp;};
+  lab(b, 'BEARING FEEDER', -3.2, 2.2, -.5); lab(s, 'SHAFT TRAY', 2.6, 1.9, -.1); lab(l, 'LID CHUTE', 0, 2.75, -3.2); lab(a, 'ASSEMBLY', -.9, 1.7, 2.3); lab(e, 'EXIT CONVEYOR', 3.6, 1.6, 3.4);
+
+  // ---- sequence ----
+  const FIX = new T.Vector3(0, .86, 2.0);
+  const work = new T.Group(); root.add(work); // parts on the fixture
+  let basePart, carried = null, shaftIdx = 0, outgoing = [];
+  const newBase = () => {basePart = add(work, baseGeo, mat.orange, FIX.x, FIX.y + .08, FIX.z); basePart.userData.stack = [];};
+  newBase();
+  const P = (x, y, z) => new T.Vector3(x, y, z); const up = (v, h = .55) => v.clone().setY(v.y + h);
+  const pBear = P(-1.9, 1.38, -.16), pLid = P(0, 1.19, -1.95), pConv = P(1.5, 1.315, 2.9), pFix = P(0, 1.3, 2.0);
+  const H = [1.06, 1.31, 1.23];              // resting heights: bearing, shaft, lid
+  const place = [P(0, 1.11, 2.0), P(0, 1.51, 2.0), P(0, 1.28, 2.0)];
+  const steps = [];
+  const go = (pos, dur = .8, act) => steps.push({pos, dur, act});
+  const home = P(1.6, 2.1, .6);
+  function plan() {
+    steps.length = 0; const sh = shafts[shaftIdx % shafts.length].position.clone().add(s.position); sh.y += .2;
+    go(home, .6);
+    go(up(pBear), .9); go(pBear, .45, () => grab(bearingReady, bearingGeo, mat.chrome)); go(up(pBear), .45);
+    go(up(place[0]), 1.0); go(place[0], .45, () => drop(0)); go(up(place[0]), .4);
+    go(up(sh), 1.0); go(sh, .45, () => grab(shafts[shaftIdx++ % shafts.length], null, null)); go(up(sh), .45);
+    go(up(place[1]), 1.0); go(place[1], .45, () => drop(1)); go(up(place[1]), .4);
+    go(up(pLid), .9); go(pLid, .45, () => grab(lidReady, lidGeo, mat.blue)); go(up(pLid), .45);
+    go(up(place[2], .7), 1.0); go(place[2], .45, () => drop(2)); go(up(place[2], .7), .45);
+    go(up(pFix, .4), .5); go(pFix, .4, grabAssembly); go(up(pFix, .6), .5);
+    go(up(pConv, .5), 1.0); go(pConv, .45, dropAssembly); go(up(pConv, .6), .4); go(home, .8, plan);
+  }
+  const dummy = new T.Vector3();
+  function grab(src, geo, m) {
+    if (geo) {carried = add(scene, geo, m); src.visible = false; setTimeout(() => (src.visible = true), 2600);}
+    else {carried = src.clone(); scene.add(carried); src.visible = false; setTimeout(() => (src.visible = true), 9000);}
+    carried.userData.kind = geo ? 'part' : 'shaft'; closeGrip = 1;
+  }
+  function drop(n) {
+    if (!carried) return; scene.remove(carried); work.add(carried); carried.position.set(FIX.x, H[n], FIX.z);
+    carried.rotation.set(0, 0, 0); basePart.userData.stack.push(carried); carried = null; closeGrip = 0;
+  }
+  function grabAssembly() {
+    const g = new T.Group(); scene.add(g); for (const o of [basePart, ...basePart.userData.stack]) {const w = o.getWorldPosition(dummy).clone(); g.attach(o); o.position.copy(w);}
+    carried = g; carried.userData.kind = 'assembly'; closeGrip = 1; carried.userData.anchor = pFix.clone();
+  }
+  function dropAssembly() {
+    if (!carried) return; const g = carried; carried = null; closeGrip = 0; g.position.copy(pConv).sub(pFix); outgoing.push(g); newBase();
+  }
+  let step = 0, stepT = 0, from = home.clone(), closeGrip = 0, grip = 0;
+  plan();
+  const cyl2 = v => ({a: Math.atan2(-v.z, v.x), r: Math.hypot(v.x, v.z), h: v.y});
+  const tipNow = home.clone();
+  function solve(p) {
+    const c = cyl2(p); j1.rotation.y = c.a;
+    const wx = c.r, wy = c.h + TOOL - SH; const D = Math.min(L1 + L2 - .02, Math.hypot(wx, wy));
+    const c2 = (D * D - L1 * L1 - L2 * L2) / (2 * L1 * L2); const a2 = -Math.acos(Math.max(-1, Math.min(1, c2)));
+    const a1 = Math.atan2(wy, wx) - Math.atan2(L2 * Math.sin(a2), L1 + L2 * Math.cos(a2));
+    j2.rotation.z = a1; j3.rotation.z = a2; wrist.rotation.z = -Math.PI / 2 - a1 - a2;
+  }
+  solve(home);
+  const lerpCyl = (p, q, t) => {const A = cyl2(p), B = cyl2(q); let da = B.a - A.a; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI; const ang = A.a + da * t, r = A.r + (B.r - A.r) * t; return new T.Vector3(r * Math.cos(ang), A.h + (B.h - A.h) * t, -r * Math.sin(ang));};
+  const tipWorld = new T.Vector3();
+  function update(dt, t) {
+    const st = steps[step]; stepT += dt / st.dur; const k = ease(Math.min(1, stepT));
+    tipNow.copy(lerpCyl(from, st.pos, k)); solve(tipNow);
+    if (stepT >= 1) {from = st.pos.clone(); stepT = 0; step++; const act = st.act; if (step >= steps.length) step = 0; act?.(); if (act === plan) step = 0;}
+    grip += (closeGrip - grip) * Math.min(1, dt * 10); fingers.forEach((f, i) => (f.position.z = (i ? 1 : -1) * (.1 - grip * .045)));
+    root.updateMatrixWorld(); tip.getWorldPosition(tipWorld);
+    if (carried) {if (carried.userData.kind === 'assembly') carried.position.copy(tipWorld).sub(carried.userData.anchor); else {carried.position.copy(tipWorld); carried.position.y -= carried.userData.kind === 'shaft' ? .2 : .05;}}
+    for (const g of outgoing) {
+      g.position.x += dt * .55;
+      if (g.position.x > 4.2) g.traverse(o => {if (o.material) {if (!o.userData.fade) {o.material = o.material.clone(); o.material.transparent = true; o.userData.fade = 1;} o.material.opacity = Math.max(0, 1 - (g.position.x - 4.2) / .6);}});
+    }
+    outgoing = outgoing.filter(g => {if (g.position.x > 4.8) {scene.remove(g); return false;} return true;});
+    convTex.offset.x -= dt * .55 / (3.9 / 10);
+    ringsGroup.rotation.y = t * .6; ringsGroup.position.y = 1.33 + Math.sin(t * 60) * .003;
+    lids.forEach((lid, i) => (lid.position.z = .55 - i * .4 + Math.sin(t * 2 + i) * .01));
+    const pulse = 1.2 + Math.sin(t * 5) * .8; sensorB.material.emissiveIntensity = pulse; sensorE.material.emissiveIntensity = 2.2 - pulse * .5; stackGreen.material.emissiveIntensity = 1.6 + Math.sin(t * 2) * .4;
+  }
+  const notes = {all: 'A report-based reconstruction of the part flow. Select a station to explore.', bearings: 'Bearing feeder: a vibratory bowl aligns bearings. A proximity sensor checks pickup readiness.', shafts: 'Shaft tray: pre-aligned slots hold shafts for pickup. The report proposes fill-level monitoring.', lids: 'Lid chute: gravity brings oriented lids to the pickup point; a photoelectric sensor checks arrival.', assembly: 'Assembly: insert bearing, then shaft, then lid. Proposed vision and force checks support alignment.', exit: 'Exit conveyor: transfer the completed assembly and check part presence at the outgoing station.'};
+  return {
+    target: [0, .9, 0], position: [9.5, 7.5, 10.5], shadow: 7.5, update,
+    change(value) {
+      for (const [k, g] of Object.entries(groups)) g.traverse(o => {if (o.isMesh) {o.userData.m ??= o.material; o.material = value === 'all' || k === value ? o.userData.m : mat.ghost;} if (o.isSprite) o.visible = value === 'all' || k === value;});
+      return notes[value];
+    }
+  };
 }
-const builders={workcell,turtlebot,nanotube};
-function init(panel){const stage=panel.querySelector('.mini-stage'),desc=panel.querySelector('.mini-description');try{
- const renderer=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setClearColor(0,0);renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
- const scene=new T.Scene();const camera=new T.PerspectiveCamera(38,1,.05,200);const controls=new OrbitControls(camera,renderer.domElement);controls.enablePan=false;controls.enableDamping=false;controls.minDistance=2;controls.maxDistance=35;
- const env=new RoomEnvironment(),gen=new T.PMREMGenerator(renderer);scene.environment=gen.fromScene(env,.02).texture;env.dispose();gen.dispose();scene.add(new T.HemisphereLight(0xddeaff,0x2a3b50,3));const light=new T.DirectionalLight(0xcadfff,3);light.position.set(3,8,5);scene.add(light);
- const model=builders[panel.dataset.model](scene);function draw(){renderer.render(scene,camera)}function reset(){camera.position.set(...model.position);controls.target.set(...model.target);controls.update();draw()}function zoom(n){const v=camera.position.clone().sub(controls.target).multiplyScalar(n).clampLength(2,35);camera.position.copy(controls.target).add(v);controls.update();draw()}
- stage.appendChild(renderer.domElement);renderer.domElement.setAttribute('aria-hidden','true');stage.querySelector('img').hidden=true;stage.dataset.loaded='true';panel.querySelector('.mini-reset').addEventListener('click',reset);controls.addEventListener('change',draw);
- new ResizeObserver(()=>{const {width,height}=stage.getBoundingClientRect();renderer.setSize(width,height);camera.aspect=width/height;camera.zoom=Math.min(1,Math.max(.4,camera.aspect/1.5));camera.updateProjectionMatrix();draw()}).observe(stage);
- const option=panel.querySelector('.model-option');if(option){const applyOption=()=>{desc.textContent=model.change(option.value);draw()};option.addEventListener('change',applyOption);applyOption()}
- const range=panel.querySelector('input');if(range){const applyDistance=()=>{panel.querySelector('output').textContent=(Number(range.value)/100).toFixed(2)+' m';desc.textContent=model.change(range.value);draw()};range.addEventListener('input',applyDistance);applyDistance()}
- stage.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')reset();else if(e.key==='+'||e.key==='=')zoom(.85);else if(e.key==='-')zoom(1.15);else if(e.key.startsWith('Arrow')){const v=camera.position.clone().sub(controls.target);if(e.key==='ArrowLeft'||e.key==='ArrowRight')v.applyAxisAngle(new T.Vector3(0,1,0),e.key==='ArrowLeft'?.12:-.12);else v.y+=e.key==='ArrowUp'?.3:-.3;camera.position.copy(controls.target).add(v);controls.update();draw()}else return;e.preventDefault()});
- renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();stage.querySelector('img').hidden=false;renderer.domElement.hidden=true;desc.textContent='Still diagram shown. Reload to restore 3D.';panel.querySelectorAll('button,input,select').forEach(c=>c.disabled=true)});reset();
- window.__projectViewers??={};window.__projectViewers[panel.dataset.model]={scene,camera,renderer,controls,draw};
- }catch(e){stage.dataset.loaded='fallback';desc.textContent='Still diagram shown. Interactive 3D is unavailable in this browser.';panel.querySelectorAll('button,input,select').forEach(c=>c.disabled=true);console.warn('Project diagram fallback:',e.message)}}
-const observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){observer.unobserve(entry.target);init(entry.target)}},{rootMargin:'200px'});document.querySelectorAll('.mini-viewer').forEach(panel=>observer.observe(panel));
+
+// =====================================================================
+// 04 — TurtleBot3-style robot with a spinning LiDAR and live front-sector check
+// =====================================================================
+function turtlebot(scene) {
+  const floor = studioFloor({size: 16, color: 0xb9c1cc, map: gridTexture({bg: '#252a31', line: '#3b434e', minor: '#2a3038', major: 4}), repeat: 4, roughness: .7, fadeInner: .08, fadeOuter: .5});
+  scene.add(floor);
+  const S = 3.6; // robot drawn ~1.8× larger than the 2-units-per-metre floor scale, for legibility
+  const bot = new T.Group(); bot.scale.setScalar(S); scene.add(bot);
+  // waffle plates with hole pattern
+  const [pc, pg] = [document.createElement('canvas'), null]; pc.width = pc.height = 256; const g2 = pc.getContext('2d');
+  g2.fillStyle = '#fff'; g2.fillRect(0, 0, 256, 256); g2.fillStyle = '#000'; for (let y = 10; y < 256; y += 22) for (let x = (y / 22 % 2) * 11 + 6; x < 256; x += 22) {g2.beginPath(); g2.roundRect(x, y, 12, 12, 2); g2.fill();}
+  void pg; const holes = new T.CanvasTexture(pc);
+  const plateMat = new T.MeshStandardMaterial({color: 0x2e3238, roughness: .55, metalness: .05, alphaMap: holes, alphaTest: .5, side: T.DoubleSide});
+  const plateGeo = new T.CylinderGeometry(.072, .072, .003, 48);
+  for (const y of [.05, .092, .134, .176]) {add(bot, plateGeo, plateMat, 0, y, 0); for (const [x, z] of [[.05, .045], [-.05, .045], [.05, -.045], [-.05, -.045]]) cyl(bot, x, y + .021, z, .0035, .042, mat.chrome, 12);}
+  // motors, battery, boards
+  for (const sx of [-1, 1]) box(bot, sx * .035, .033, -.005, .034, .028, .046, mat.black);
+  box(bot, 0, .066, .018, .07, .022, .035, new T.MeshStandardMaterial({color: 0x4a5058, roughness: .5}));
+  const pcb = pcbTexture(); box(bot, 0, .1, 0, .105, .004, .105, new T.MeshStandardMaterial({map: pcb, roughness: .45, metalness: .2}));
+  const rpiTex = pcbTexture(); rpiTex.rotation = 1.2; box(bot, 0, .142, .005, .085, .004, .056, new T.MeshStandardMaterial({map: rpiTex, roughness: .45, metalness: .2}));
+  box(bot, .02, .148, .01, .014, .008, .014, mat.steel); box(bot, -.02, .148, 0, .02, .01, .016, mat.steel);
+  const led = cyl(bot, .045, .18, .045, .006, .006, glow(0x39ff88, 3), 12);
+  // wheels
+  const wheels = [];
+  for (const sx of [-1, 1]) {
+    const w = new T.Group(); w.position.set(sx * .08, .033, -.005); bot.add(w);
+    const tire = add(w, new T.TorusGeometry(.028, .007, 16, 40), mat.rubber); tire.rotation.y = Math.PI / 2;
+    const hub = cyl(w, 0, 0, 0, .025, .014, new T.MeshStandardMaterial({color: 0xd9dde3, roughness: .45}), 32); hub.rotation.z = Math.PI / 2;
+    for (let k = 0; k < 5; k++) {const sp = box(w, sx * .008, 0, 0, .002, .004, .044, mat.graphite); sp.rotation.x = k / 5 * Math.PI;}
+    wheels.push(w);
+  }
+  add(bot, new T.SphereGeometry(.009, 20, 16), mat.chrome, 0, .009, .06);
+  // LiDAR (LDS-style): fixed base + spinning turret
+  box(bot, 0, .186, 0, .07, .016, .07, mat.black); const turret = new T.Group(); turret.position.y = .2; bot.add(turret);
+  cyl(turret, 0, 0, 0, .033, .018, new T.MeshStandardMaterial({color: 0x1b1d21, roughness: .25, metalness: .4}), 40);
+  box(turret, 0, .002, -.03, .02, .01, .01, glow(0xff5a36, 2));
+  const lidarY = .2 * S;
+
+  // obstacle: cardboard box with tape
+  const [cc, cg] = [document.createElement('canvas'), null]; cc.width = cc.height = 128; const c2 = cc.getContext('2d'); void cg;
+  c2.fillStyle = '#b0834f'; c2.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) {c2.fillStyle = `rgba(80,50,20,${Math.random() * .12})`; c2.fillRect(Math.random() * 128, Math.random() * 128, 2, 1);}
+  c2.fillStyle = '#d4b27d'; c2.fillRect(52, 0, 24, 128); const cardTex = new T.CanvasTexture(cc); cardTex.colorSpace = T.SRGBColorSpace;
+  const obstacle = box(scene, 0, .2, -1.4, .38, .4, .3, new T.MeshStandardMaterial({map: cardTex, roughness: .85}));
+  // sector fan on the floor + threshold arc
+  const fanGeo = (r, from, to) => {const p = [0, 0, 0]; const n = 30; for (let i = 0; i <= n; i++) {const a = (from + (to - from) * i / n) * Math.PI / 180; p.push(Math.sin(a) * r, 0, -Math.cos(a) * r);} const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(p, 3)); const idx = []; for (let i = 1; i <= n; i++) idx.push(0, i, i + 1); g.setIndex(idx); return g;};
+  const sectorMat = new T.MeshBasicMaterial({color: 0x39ff88, transparent: true, opacity: .18, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending});
+  const sector = new T.Mesh(fanGeo(3.4, -15, 15), sectorMat); sector.position.y = .01; scene.add(sector);
+  const arc = new T.Mesh(new T.RingGeometry(.985, 1.015, 48, 1, Math.PI / 2 - 15 * Math.PI / 180, 30 * Math.PI / 180), new T.MeshBasicMaterial({color: 0xffb547, side: T.DoubleSide}));
+  arc.rotation.x = -Math.PI / 2; arc.position.y = .012; scene.add(arc);
+  // rays
+  const rayCount = 31, rayPos = new Float32Array(rayCount * 6); const rayGeo = new T.BufferGeometry(); rayGeo.setAttribute('position', new T.BufferAttribute(rayPos, 3));
+  const rayMat = new T.LineBasicMaterial({color: 0x7dffb0, transparent: true, opacity: .85, blending: T.AdditiveBlending}); const rays = new T.LineSegments(rayGeo, rayMat); scene.add(rays);
+  const hits = new T.InstancedMesh(new T.SphereGeometry(.018, 10, 8), new T.MeshBasicMaterial({color: 0xff5a36}), rayCount); scene.add(hits);
+  // 360° scan points (spinning sweep)
+  const scanN = 180, scanPos = new Float32Array(scanN * 3); const scanGeo = new T.BufferGeometry(); scanGeo.setAttribute('position', new T.BufferAttribute(scanPos, 3));
+  const scan = new T.Points(scanGeo, new T.PointsMaterial({color: 0xff6b4a, size: .035, transparent: true, opacity: .8, depthWrite: false, blending: T.AdditiveBlending})); scene.add(scan);
+  // turn arrow shown when blocked
+  const turnArrow = new T.Group(); turnArrow.position.y = .03; scene.add(turnArrow);
+  const arrowMat = new T.MeshBasicMaterial({color: 0xffb547, transparent: true, opacity: .9});
+  const tor = new T.Mesh(new T.TorusGeometry(.55, .025, 8, 40, Math.PI / 2), arrowMat); tor.rotation.x = -Math.PI / 2; turnArrow.add(tor);
+  const head = new T.Mesh(new T.ConeGeometry(.07, .16, 16), arrowMat); head.position.set(0, 0, .55); head.rotation.set(0, 0, -Math.PI / 2); head.rotation.order = 'YXZ'; turnArrow.add(head);
+  turnArrow.rotation.y = Math.PI / 2; turnArrow.visible = false;
+  const l1 = labelSprite('LiDAR FRONT SECTOR ±15°', {scale: .62, accent: '#39ff88'}); l1.position.set(0, 1.25, -1.7); scene.add(l1);
+  const l2 = labelSprite('0.5 m THRESHOLD', {scale: .5}); l2.position.set(.75, .2, -1.05); scene.add(l2);
+
+  let blocked = false, dist = .7; const m4 = new T.Matrix4();
+  const obstacleHit = ang => { // ray vs obstacle front face (box, axis-aligned)
+    const dx = Math.sin(ang), dz = -Math.cos(ang); const zf = obstacle.position.z + .15; const tt = zf / dz; if (tt <= 0) return null;
+    const x = dx * tt; return Math.abs(x - obstacle.position.x) <= .19 ? tt : null;
+  };
+  function updateRays() {
+    for (let i = 0; i < rayCount; i++) {
+      const ang = (-15 + i) * Math.PI / 180; const h = obstacleHit(ang); const r = h ?? 3.4; const y1 = h ? .22 : .02;
+      rayPos.set([0, lidarY, 0, Math.sin(ang) * r, y1, -Math.cos(ang) * r], i * 6);
+      m4.makeTranslation(Math.sin(ang) * r, y1, -Math.cos(ang) * r); if (!h) m4.makeScale(0, 0, 0); hits.setMatrixAt(i, m4);
+    }
+    rayGeo.attributes.position.needsUpdate = true; hits.instanceMatrix.needsUpdate = true;
+  }
+  function update(dt, t) {
+    turret.rotation.y -= dt * 9;
+    if (!blocked) wheels.forEach(w => (w.rotation.x -= dt * 6));
+    // scan sweep: points trail behind the turret heading
+    const head0 = -turret.rotation.y;
+    for (let i = 0; i < scanN; i++) {
+      const ang = head0 - i / scanN * 1.6; const h = obstacleHit(((ang % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+      const r = h ?? 3.1 + Math.sin(ang * 3) * .25; scanPos.set([Math.sin(ang) * r, h ? .22 : .06, -Math.cos(ang) * r], i * 3);
+    }
+    scanGeo.attributes.position.needsUpdate = true;
+    rayMat.opacity = .55 + Math.sin(t * 12) * .25; sectorMat.opacity = .14 + Math.sin(t * 3) * .05;
+    if (blocked) {turnArrow.children.forEach(c => (c.material.opacity = .5 + Math.sin(t * 5) * .4)); led.material.emissiveIntensity = 2 + Math.sin(t * 10) * 1.5;}
+  }
+  return {
+    target: [0, .4, -.75], position: [2.9, 2.3, 2.3], shadow: 3, update,
+    change(value) {
+      dist = Number(value) / 100; obstacle.position.z = -dist * 2 - .15; blocked = dist < .5;
+      const c = blocked ? 0xff5a36 : 0x39ff88; sectorMat.color.setHex(c); rayMat.color.setHex(blocked ? 0xff8a6a : 0x7dffb0); led.material.color.setHex(c); led.material.emissive.setHex(c);
+      turnArrow.visible = blocked; updateRays();
+      return blocked ? 'Obstacle detected: stop, wait 3 seconds, then turn 90° clockwise if the obstacle remains. Check again before moving.' : "Path clear: the report's controller commands 0.15 m/s forward motion.";
+    }
+  };
+}
+
+// =====================================================================
+// 05 — Carbon nanotube: instanced atoms and bonds with iridescent shading
+// =====================================================================
+function nanotube(scene) {
+  const holder = new T.Group(); scene.add(holder); holder.rotation.z = Math.PI / 2;
+  const walls = []; const R0 = 1.0, C0 = 14, rows = 13;
+  const palette = [
+    {atom: new T.MeshPhysicalMaterial({color: 0x3b414b, metalness: .3, roughness: .22, clearcoat: 1, clearcoatRoughness: .1, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [200, 600]}), bond: 0x9fb4cc},
+    {atom: new T.MeshPhysicalMaterial({color: 0xff9a3c, metalness: .2, roughness: .25, clearcoat: 1, clearcoatRoughness: .15}), bond: 0xffc890},
+    {atom: new T.MeshPhysicalMaterial({color: 0x9b6bff, metalness: .2, roughness: .25, clearcoat: 1, clearcoatRoughness: .15}), bond: 0xc9b2ff}
+  ];
+  const a = 2 * Math.PI * R0 / (C0 * Math.sqrt(3));
+  for (let w = 0; w < 3; w++) {
+    const radius = R0 + w * .34, cols = Math.round(C0 * radius / R0), circ = 2 * Math.PI * radius, aw = circ / (cols * Math.sqrt(3));
+    const pts = new Map(), edges = new Set(), bonds = [];
+    for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
+      const cx = Math.sqrt(3) * aw * (col + (row % 2) * .5), cy = 1.5 * a * row; const keys = [];
+      for (let j = 0; j < 6; j++) {
+        const ang = (60 * j + 30) * Math.PI / 180, u = cx + aw * Math.cos(ang), v = cy + a * Math.sin(ang), th = u / circ * Math.PI * 2;
+        const p = new T.Vector3(radius * Math.cos(th), v - 1.5 * a * (rows - 1) / 2, radius * Math.sin(th)); const k = p.toArray().map(n => n.toFixed(3)).join(','); if (!pts.has(k)) pts.set(k, p); keys.push(k);
+      }
+      for (let j = 0; j < 6; j++) {const pair = [keys[j], keys[(j + 1) % 6]].sort(), k = pair.join('|'); if (!edges.has(k)) {edges.add(k); bonds.push([pts.get(pair[0]), pts.get(pair[1])]);}}
+    }
+    const g = new T.Group(); holder.add(g); walls.push(g);
+    const atoms = new T.InstancedMesh(new T.SphereGeometry(.06, 20, 14), palette[w].atom, pts.size); const m4 = new T.Matrix4(); let i = 0;
+    for (const p of pts.values()) {m4.makeTranslation(p.x, p.y, p.z); atoms.setMatrixAt(i++, m4);} g.add(atoms);
+    const bondMesh = new T.InstancedMesh(new T.CylinderGeometry(.018, .018, 1, 8), new T.MeshStandardMaterial({color: palette[w].bond, metalness: .6, roughness: .3}), bonds.length);
+    const q = new T.Quaternion(), yAxis = new T.Vector3(0, 1, 0), d = new T.Vector3(), mid = new T.Vector3(), sc = new T.Vector3();
+    bonds.forEach(([p1, p2], k) => {d.subVectors(p2, p1); const len = d.length(); q.setFromUnitVectors(yAxis, d.normalize()); mid.addVectors(p1, p2).multiplyScalar(.5); sc.set(1, len, 1); m4.compose(mid, q, sc); bondMesh.setMatrixAt(k, m4);});
+    g.add(bondMesh); g.visible = w === 0;
+  }
+  // soft backlight halo
+  const [hc] = [document.createElement('canvas')]; hc.width = hc.height = 256; const hg = hc.getContext('2d'); const gr = hg.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(90,170,255,.55)'); gr.addColorStop(.5, 'rgba(120,80,255,.15)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); hg.fillStyle = gr; hg.fillRect(0, 0, 256, 256);
+  const halo = new T.Sprite(new T.SpriteMaterial({map: new T.CanvasTexture(hc), transparent: true, depthWrite: false, blending: T.AdditiveBlending})); halo.scale.set(9, 9, 1); halo.renderOrder = -2; scene.add(halo);
+  return {
+    target: [0, 0, 0], position: [4.2, 2.6, 5.4], shadow: 0,
+    update(dt, t) {walls.forEach((g, i) => (g.rotation.y += dt * (.25 + i * .08) * (i % 2 ? -1 : 1))); holder.position.y = Math.sin(t * .8) * .06;},
+    change(value) {walls.forEach((g, i) => (g.visible = i === 0 || value === 'multi')); return value === 'multi' ? 'Multiple concentric carbon lattice walls. Layer spacing is enlarged for clarity and is not to atomic scale.' : 'A single carbon lattice wrapped into a tube. The model explains structure, not material performance.';}
+  };
+}
+
+const builders = {workcell, turtlebot, nanotube};
+function init(panel) {
+  const stage = panel.querySelector('.mini-stage'), desc = panel.querySelector('.mini-description');
+  try {
+    const renderer = makeRenderer(1.75);
+    const scene = new T.Scene(); scene.environment = studioEnvironment(renderer); scene.environmentIntensity = .85;
+    const camera = new T.PerspectiveCamera(36, 1, .05, 200);
+    const controls = new OrbitControls(camera, renderer.domElement); controls.enablePan = false; controls.enableDamping = true; controls.dampingFactor = .08;
+    controls.minDistance = 2; controls.maxDistance = 35; controls.maxPolarAngle = Math.PI * .48;
+    scene.add(new T.HemisphereLight(0xd6e6ff, 0x221a14, .6));
+    const model = builders[panel.dataset.model](scene);
+    const keyL = new T.DirectionalLight(0xfff1e0, 2.6); keyL.position.set(6, 10, 5);
+    if (model.shadow) {keyL.castShadow = true; keyL.shadow.mapSize.set(2048, 2048); keyL.shadow.bias = -.0005; keyL.shadow.normalBias = .02; const s = model.shadow; Object.assign(keyL.shadow.camera, {left: -s, right: s, top: s, bottom: -s, near: .5, far: 40});}
+    scene.add(keyL); const rimL = new T.DirectionalLight(0xff9b52, .9); rimL.position.set(-7, 4, -6); scene.add(rimL);
+    const fillL = new T.DirectionalLight(0x6fb8ff, .9); fillL.position.set(8, 3, -2); scene.add(fillL);
+    function draw() {renderer.render(scene, camera);}
+    function reset() {camera.position.set(...model.position); controls.target.set(...model.target); controls.update(); draw();}
+    function zoom(n) {const v = camera.position.clone().sub(controls.target).multiplyScalar(n).clampLength(2, 35); camera.position.copy(controls.target).add(v); controls.update(); draw();}
+    stage.appendChild(renderer.domElement); renderer.domElement.setAttribute('aria-hidden', 'true'); stage.querySelector('img').hidden = true; stage.dataset.loaded = 'true';
+    panel.querySelector('.mini-reset').addEventListener('click', reset);
+    new ResizeObserver(() => {const {width, height} = stage.getBoundingClientRect(); if (!width) return; renderer.setSize(width, height); camera.aspect = width / height; camera.zoom = Math.min(1, Math.max(.45, camera.aspect / 1.5)); camera.updateProjectionMatrix(); draw();}).observe(stage);
+    const option = panel.querySelector('.model-option'); if (option) {const apply = () => {desc.textContent = model.change(option.value); draw();}; option.addEventListener('change', apply); apply();}
+    const range = panel.querySelector('input[type=range]'); if (range) {const apply = () => {panel.querySelector('output').textContent = (Number(range.value) / 100).toFixed(2) + ' m'; desc.textContent = model.change(range.value); draw();}; range.addEventListener('input', apply); apply();}
+    let playing = !reducedMotion.matches; const toggle = panel.querySelector('.mini-play');
+    const sync = () => {if (toggle) {toggle.textContent = playing ? 'Pause' : 'Play'; toggle.setAttribute('aria-pressed', String(playing));}};
+    toggle?.addEventListener('click', () => {playing = !playing; sync();}); sync(); reducedMotion.addEventListener('change', () => {playing = !reducedMotion.matches; sync();});
+    stage.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() === 'r') reset(); else if (e.key === '+' || e.key === '=') zoom(.85); else if (e.key === '-') zoom(1.15);
+      else if (e.key.startsWith('Arrow')) {const v = camera.position.clone().sub(controls.target); if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') v.applyAxisAngle(new T.Vector3(0, 1, 0), e.key === 'ArrowLeft' ? .12 : -.12); else v.y += e.key === 'ArrowUp' ? .3 : -.3; camera.position.copy(controls.target).add(v); controls.update(); draw();}
+      else return; e.preventDefault();
+    });
+    renderer.domElement.addEventListener('webglcontextlost', e => {e.preventDefault(); stage.querySelector('img').hidden = false; renderer.domElement.hidden = true; desc.textContent = 'Still diagram shown. Reload to restore 3D.'; panel.querySelectorAll('button,input,select').forEach(c => c.disabled = true);});
+    reset();
+    visibleLoop(stage, (dt, t) => {const moved = controls.update(); if (playing) model.update?.(dt, t); if (playing || moved) draw();});
+    window.__projectViewers ??= {}; window.__projectViewers[panel.dataset.model] = {scene, camera, renderer, controls, draw};
+  } catch (e) {
+    stage.dataset.loaded = 'fallback'; desc.textContent = 'Still diagram shown. Interactive 3D is unavailable in this browser.';
+    panel.querySelectorAll('button,input,select').forEach(c => c.disabled = true); console.warn('Project diagram fallback:', e);
+  }
+}
+const observer = new IntersectionObserver(entries => {for (const entry of entries) if (entry.isIntersecting) {observer.unobserve(entry.target); init(entry.target);}}, {rootMargin: '300px'});
+document.querySelectorAll('.mini-viewer').forEach(panel => observer.observe(panel));

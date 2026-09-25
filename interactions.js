@@ -27,9 +27,10 @@ presets.forEach(button=>button.addEventListener('click',()=>{
  if(explode.disabled||component.disabled)return;
  explode.value=button.dataset.preset==='exploded'?'65':'0';component.value=button.dataset.preset==='adjuster'?'adjuster':'all';
  explode.dispatchEvent(new Event('input',{bubbles:true}));component.dispatchEvent(new Event('change',{bubbles:true}));
+ const shift=document.querySelector('#shift');if(shift){shift.value=button.dataset.preset==='adjuster'?'14':'0';shift.dispatchEvent(new Event('input',{bubbles:true}))}
  presets.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
 }));
-['#explode','#component'].forEach(selector=>document.querySelector(selector).addEventListener('input',e=>{if(e.isTrusted)presets.forEach(b=>b.setAttribute('aria-pressed','false'))}));
+['#explode','#component','#shift'].forEach(selector=>document.querySelector(selector).addEventListener('input',e=>{if(e.isTrusted)presets.forEach(b=>b.setAttribute('aria-pressed','false'))}));
 // Keep the project list easy to scan while preserving native disclosure controls.
 document.querySelectorAll('.ai-project').forEach(detail=>detail.addEventListener('toggle',()=>{
  if(detail.open)document.querySelectorAll('.ai-project').forEach(other=>{if(other!==detail)other.open=false});
