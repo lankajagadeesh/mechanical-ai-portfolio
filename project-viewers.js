@@ -1,6 +1,7 @@
 // Project scenes: animated, physically lit 3D models.
 import * as T from 'three';
 import {OrbitControls} from './assets/OrbitControls.js';
+import {turtlebot, scrubber} from './sim-builders.js';
 import {makeRenderer, studioEnvironment, brushedTexture, speckleTexture, gridTexture, hazardTexture, fenceTexture, conveyorTexture, pcbTexture, studioFloor, labelSprite, visibleLoop, reducedMotion} from './scene-kit.js';
 
 // ---------- shared materials ----------
@@ -206,108 +207,6 @@ function workcell(scene) {
 }
 
 // =====================================================================
-// 04 — TurtleBot3-style robot with a spinning LiDAR and live front-sector check
-// =====================================================================
-function turtlebot(scene) {
-  const floor = studioFloor({size: 16, color: 0xb9c1cc, map: gridTexture({bg: '#252a31', line: '#3b434e', minor: '#2a3038', major: 4}), repeat: 4, roughness: .7, fadeInner: .08, fadeOuter: .5});
-  scene.add(floor);
-  const S = 3.6; // robot drawn ~1.8× larger than the 2-units-per-metre floor scale, for legibility
-  const bot = new T.Group(); bot.scale.setScalar(S); scene.add(bot);
-  // waffle plates with hole pattern
-  const [pc, pg] = [document.createElement('canvas'), null]; pc.width = pc.height = 256; const g2 = pc.getContext('2d');
-  g2.fillStyle = '#fff'; g2.fillRect(0, 0, 256, 256); g2.fillStyle = '#000'; for (let y = 10; y < 256; y += 22) for (let x = (y / 22 % 2) * 11 + 6; x < 256; x += 22) {g2.beginPath(); g2.roundRect(x, y, 12, 12, 2); g2.fill();}
-  void pg; const holes = new T.CanvasTexture(pc);
-  const plateMat = new T.MeshStandardMaterial({color: 0x2e3238, roughness: .55, metalness: .05, alphaMap: holes, alphaTest: .5, side: T.DoubleSide});
-  const plateGeo = new T.CylinderGeometry(.072, .072, .003, 48);
-  for (const y of [.05, .092, .134, .176]) {add(bot, plateGeo, plateMat, 0, y, 0); for (const [x, z] of [[.05, .045], [-.05, .045], [.05, -.045], [-.05, -.045]]) cyl(bot, x, y + .021, z, .0035, .042, mat.chrome, 12);}
-  // motors, battery, boards
-  for (const sx of [-1, 1]) box(bot, sx * .035, .033, -.005, .034, .028, .046, mat.black);
-  box(bot, 0, .066, .018, .07, .022, .035, new T.MeshStandardMaterial({color: 0x4a5058, roughness: .5}));
-  const pcb = pcbTexture(); box(bot, 0, .1, 0, .105, .004, .105, new T.MeshStandardMaterial({map: pcb, roughness: .45, metalness: .2}));
-  const rpiTex = pcbTexture(); rpiTex.rotation = 1.2; box(bot, 0, .142, .005, .085, .004, .056, new T.MeshStandardMaterial({map: rpiTex, roughness: .45, metalness: .2}));
-  box(bot, .02, .148, .01, .014, .008, .014, mat.steel); box(bot, -.02, .148, 0, .02, .01, .016, mat.steel);
-  const led = cyl(bot, .045, .18, .045, .006, .006, glow(0x39ff88, 3), 12);
-  // wheels
-  const wheels = [];
-  for (const sx of [-1, 1]) {
-    const w = new T.Group(); w.position.set(sx * .08, .033, -.005); bot.add(w);
-    const tire = add(w, new T.TorusGeometry(.028, .007, 16, 40), mat.rubber); tire.rotation.y = Math.PI / 2;
-    const hub = cyl(w, 0, 0, 0, .025, .014, new T.MeshStandardMaterial({color: 0xd9dde3, roughness: .45}), 32); hub.rotation.z = Math.PI / 2;
-    for (let k = 0; k < 5; k++) {const sp = box(w, sx * .008, 0, 0, .002, .004, .044, mat.graphite); sp.rotation.x = k / 5 * Math.PI;}
-    wheels.push(w);
-  }
-  add(bot, new T.SphereGeometry(.009, 20, 16), mat.chrome, 0, .009, .06);
-  // LiDAR (LDS-style): fixed base + spinning turret
-  box(bot, 0, .186, 0, .07, .016, .07, mat.black); const turret = new T.Group(); turret.position.y = .2; bot.add(turret);
-  cyl(turret, 0, 0, 0, .033, .018, new T.MeshStandardMaterial({color: 0x1b1d21, roughness: .25, metalness: .4}), 40);
-  box(turret, 0, .002, -.03, .02, .01, .01, glow(0xff5a36, 2));
-  const lidarY = .2 * S;
-
-  // obstacle: cardboard box with tape
-  const [cc, cg] = [document.createElement('canvas'), null]; cc.width = cc.height = 128; const c2 = cc.getContext('2d'); void cg;
-  c2.fillStyle = '#b0834f'; c2.fillRect(0, 0, 128, 128); for (let i = 0; i < 900; i++) {c2.fillStyle = `rgba(80,50,20,${Math.random() * .12})`; c2.fillRect(Math.random() * 128, Math.random() * 128, 2, 1);}
-  c2.fillStyle = '#d4b27d'; c2.fillRect(52, 0, 24, 128); const cardTex = new T.CanvasTexture(cc); cardTex.colorSpace = T.SRGBColorSpace;
-  const obstacle = box(scene, 0, .2, -1.4, .38, .4, .3, new T.MeshStandardMaterial({map: cardTex, roughness: .85}));
-  // sector fan on the floor + threshold arc
-  const fanGeo = (r, from, to) => {const p = [0, 0, 0]; const n = 30; for (let i = 0; i <= n; i++) {const a = (from + (to - from) * i / n) * Math.PI / 180; p.push(Math.sin(a) * r, 0, -Math.cos(a) * r);} const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(p, 3)); const idx = []; for (let i = 1; i <= n; i++) idx.push(0, i, i + 1); g.setIndex(idx); return g;};
-  const sectorMat = new T.MeshBasicMaterial({color: 0x39ff88, transparent: true, opacity: .18, side: T.DoubleSide, depthWrite: false, blending: T.AdditiveBlending});
-  const sector = new T.Mesh(fanGeo(3.4, -15, 15), sectorMat); sector.position.y = .01; scene.add(sector);
-  const arc = new T.Mesh(new T.RingGeometry(.985, 1.015, 48, 1, Math.PI / 2 - 15 * Math.PI / 180, 30 * Math.PI / 180), new T.MeshBasicMaterial({color: 0xffb547, side: T.DoubleSide}));
-  arc.rotation.x = -Math.PI / 2; arc.position.y = .012; scene.add(arc);
-  // rays
-  const rayCount = 31, rayPos = new Float32Array(rayCount * 6); const rayGeo = new T.BufferGeometry(); rayGeo.setAttribute('position', new T.BufferAttribute(rayPos, 3));
-  const rayMat = new T.LineBasicMaterial({color: 0x7dffb0, transparent: true, opacity: .85, blending: T.AdditiveBlending}); const rays = new T.LineSegments(rayGeo, rayMat); scene.add(rays);
-  const hits = new T.InstancedMesh(new T.SphereGeometry(.018, 10, 8), new T.MeshBasicMaterial({color: 0xff5a36}), rayCount); scene.add(hits);
-  // 360° scan points (spinning sweep)
-  const scanN = 180, scanPos = new Float32Array(scanN * 3); const scanGeo = new T.BufferGeometry(); scanGeo.setAttribute('position', new T.BufferAttribute(scanPos, 3));
-  const scan = new T.Points(scanGeo, new T.PointsMaterial({color: 0xff6b4a, size: .035, transparent: true, opacity: .8, depthWrite: false, blending: T.AdditiveBlending})); scene.add(scan);
-  // turn arrow shown when blocked
-  const turnArrow = new T.Group(); turnArrow.position.y = .03; scene.add(turnArrow);
-  const arrowMat = new T.MeshBasicMaterial({color: 0xffb547, transparent: true, opacity: .9});
-  const tor = new T.Mesh(new T.TorusGeometry(.55, .025, 8, 40, Math.PI / 2), arrowMat); tor.rotation.x = -Math.PI / 2; turnArrow.add(tor);
-  const head = new T.Mesh(new T.ConeGeometry(.07, .16, 16), arrowMat); head.position.set(0, 0, .55); head.rotation.set(0, 0, -Math.PI / 2); head.rotation.order = 'YXZ'; turnArrow.add(head);
-  turnArrow.rotation.y = Math.PI / 2; turnArrow.visible = false;
-  const l1 = labelSprite('LiDAR FRONT SECTOR ±15°', {scale: .62, accent: '#39ff88'}); l1.position.set(0, 1.25, -1.7); scene.add(l1);
-  const l2 = labelSprite('0.5 m THRESHOLD', {scale: .5}); l2.position.set(.75, .2, -1.05); scene.add(l2);
-
-  let blocked = false, dist = .7; const m4 = new T.Matrix4();
-  const obstacleHit = ang => { // ray vs obstacle front face (box, axis-aligned)
-    const dx = Math.sin(ang), dz = -Math.cos(ang); const zf = obstacle.position.z + .15; const tt = zf / dz; if (tt <= 0) return null;
-    const x = dx * tt; return Math.abs(x - obstacle.position.x) <= .19 ? tt : null;
-  };
-  function updateRays() {
-    for (let i = 0; i < rayCount; i++) {
-      const ang = (-15 + i) * Math.PI / 180; const h = obstacleHit(ang); const r = h ?? 3.4; const y1 = h ? .22 : .02;
-      rayPos.set([0, lidarY, 0, Math.sin(ang) * r, y1, -Math.cos(ang) * r], i * 6);
-      m4.makeTranslation(Math.sin(ang) * r, y1, -Math.cos(ang) * r); if (!h) m4.makeScale(0, 0, 0); hits.setMatrixAt(i, m4);
-    }
-    rayGeo.attributes.position.needsUpdate = true; hits.instanceMatrix.needsUpdate = true;
-  }
-  function update(dt, t) {
-    turret.rotation.y -= dt * 9;
-    if (!blocked) wheels.forEach(w => (w.rotation.x -= dt * 6));
-    // scan sweep: points trail behind the turret heading
-    const head0 = -turret.rotation.y;
-    for (let i = 0; i < scanN; i++) {
-      const ang = head0 - i / scanN * 1.6; const h = obstacleHit(((ang % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
-      const r = h ?? 3.1 + Math.sin(ang * 3) * .25; scanPos.set([Math.sin(ang) * r, h ? .22 : .06, -Math.cos(ang) * r], i * 3);
-    }
-    scanGeo.attributes.position.needsUpdate = true;
-    rayMat.opacity = .55 + Math.sin(t * 12) * .25; sectorMat.opacity = .14 + Math.sin(t * 3) * .05;
-    if (blocked) {turnArrow.children.forEach(c => (c.material.opacity = .5 + Math.sin(t * 5) * .4)); led.material.emissiveIntensity = 2 + Math.sin(t * 10) * 1.5;}
-  }
-  return {
-    target: [0, .4, -.75], position: [2.9, 2.3, 2.3], shadow: 3, update,
-    change(value) {
-      dist = Number(value) / 100; obstacle.position.z = -dist * 2 - .15; blocked = dist < .5;
-      const c = blocked ? 0xff5a36 : 0x39ff88; sectorMat.color.setHex(c); rayMat.color.setHex(blocked ? 0xff8a6a : 0x7dffb0); led.material.color.setHex(c); led.material.emissive.setHex(c);
-      turnArrow.visible = blocked; updateRays();
-      return blocked ? 'Obstacle detected: stop, wait 3 seconds, then turn 90° clockwise if the obstacle remains. Check again before moving.' : "Path clear: the report's controller commands 0.15 m/s forward motion.";
-    }
-  };
-}
-
-// =====================================================================
 // 05 — Carbon nanotube: instanced atoms and bonds with iridescent shading
 // =====================================================================
 function nanotube(scene) {
@@ -344,12 +243,12 @@ function nanotube(scene) {
   const halo = new T.Sprite(new T.SpriteMaterial({map: new T.CanvasTexture(hc), transparent: true, depthWrite: false, blending: T.AdditiveBlending})); halo.scale.set(9, 9, 1); halo.renderOrder = -2; scene.add(halo);
   return {
     target: [0, 0, 0], position: [4.2, 2.6, 5.4], shadow: 0,
-    update(dt, t) {walls.forEach((g, i) => (g.rotation.y += dt * (.25 + i * .08) * (i % 2 ? -1 : 1))); holder.position.y = Math.sin(t * .8) * .06;},
-    change(value) {walls.forEach((g, i) => (g.visible = i === 0 || value === 'multi')); return value === 'multi' ? 'Multiple concentric carbon lattice walls nested inside one another.' : 'A single carbon lattice wrapped into a seamless tube.';}
+    update(dt, t) {walls.forEach((g, i) => {g.rotation.y += dt * (.25 + i * .08) * (i % 2 ? -1 : 1); const s = 1 + .035 * Math.sin(t * (4.2 - i * .9) + i); g.scale.set(s, 1, s);}); holder.position.y = Math.sin(t * .8) * .06;},
+    change(value) {walls.forEach((g, i) => (g.visible = i === 0 || value === 'multi')); return value === 'multi' ? 'Multi-wall nanotube: three concentric carbon lattices, each shown in its radial breathing mode. Thinner walls vibrate faster.' : 'Single-wall nanotube: one carbon lattice wrapped into a seamless tube, shown in its radial breathing mode.';}
   };
 }
 
-const builders = {workcell, turtlebot, nanotube};
+const builders = {workcell, turtlebot, nanotube, scrubber};
 function init(panel) {
   const stage = panel.querySelector('.mini-stage'), desc = panel.querySelector('.mini-description');
   try {
@@ -359,7 +258,9 @@ function init(panel) {
     const controls = new OrbitControls(camera, renderer.domElement); controls.enablePan = false; controls.enableDamping = true; controls.dampingFactor = .08;
     controls.minDistance = 2; controls.maxDistance = 35; controls.maxPolarAngle = Math.PI * .48;
     scene.add(new T.HemisphereLight(0xd6e6ff, 0x221a14, .6));
-    const model = builders[panel.dataset.model](scene);
+    const followOn = panel.dataset.follow === 'true'; const tgtNow = new T.Vector3(), delta = new T.Vector3();
+    const ctx = {camera, dom: renderer.domElement, follow: followOn ? (p, dt) => {tgtNow.set(p.x, controls.target.y, p.z); delta.copy(tgtNow).sub(controls.target).multiplyScalar(Math.min(1, dt * 2)); controls.target.add(delta); camera.position.add(delta);} : null};
+    const model = builders[panel.dataset.model](scene, ctx);
     const keyL = new T.DirectionalLight(0xfff1e0, 2.6); keyL.position.set(6, 10, 5);
     if (model.shadow) {keyL.castShadow = true; keyL.shadow.mapSize.set(2048, 2048); keyL.shadow.bias = -.0005; keyL.shadow.normalBias = .02; const s = model.shadow; Object.assign(keyL.shadow.camera, {left: -s, right: s, top: s, bottom: -s, near: .5, far: 40});}
     scene.add(keyL); const rimL = new T.DirectionalLight(0xff9b52, .9); rimL.position.set(-7, 4, -6); scene.add(rimL);
@@ -371,7 +272,9 @@ function init(panel) {
     panel.querySelector('.mini-reset').addEventListener('click', reset);
     new ResizeObserver(() => {const {width, height} = stage.getBoundingClientRect(); if (!width) return; renderer.setSize(width, height); camera.aspect = width / height; camera.zoom = Math.min(1, Math.max(.45, camera.aspect / 1.5)); camera.updateProjectionMatrix(); draw();}).observe(stage);
     const option = panel.querySelector('.model-option'); if (option) {const apply = () => {desc.textContent = model.change(option.value); draw();}; option.addEventListener('change', apply); apply();}
-    const range = panel.querySelector('input[type=range]'); if (range) {const apply = () => {panel.querySelector('output').textContent = (Number(range.value) / 100).toFixed(2) + ' m'; desc.textContent = model.change(range.value); draw();}; range.addEventListener('input', apply); apply();}
+    const range = panel.querySelector('input[type=range]'); if (range) {const apply = () => {panel.querySelector('output').textContent = model.format ? model.format(range.value) : range.value; desc.textContent = model.change(range.value); draw();}; range.addEventListener('input', apply); apply();}
+    panel.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', () => {model.action?.(b.dataset.action); draw();}));
+    let statusClock = 0;
     let playing = !reducedMotion.matches; const toggle = panel.querySelector('.mini-play');
     const sync = () => {if (toggle) {toggle.textContent = playing ? 'Pause' : 'Play'; toggle.setAttribute('aria-pressed', String(playing));}};
     toggle?.addEventListener('click', () => {playing = !playing; sync();}); sync(); reducedMotion.addEventListener('change', () => {playing = !reducedMotion.matches; sync();});
@@ -382,7 +285,7 @@ function init(panel) {
     });
     renderer.domElement.addEventListener('webglcontextlost', e => {e.preventDefault(); stage.querySelector('img').hidden = false; renderer.domElement.hidden = true; desc.textContent = 'Still diagram shown. Reload to restore 3D.'; panel.querySelectorAll('button,input,select').forEach(c => c.disabled = true);});
     reset();
-    visibleLoop(stage, (dt, t) => {const moved = controls.update(); if (playing) model.update?.(dt, t); if (playing || moved) draw();});
+    visibleLoop(stage, (dt, t) => {const moved = controls.update(); if (playing) model.update?.(dt, t); if (playing || moved) draw(); statusClock += dt; if (model.statusText && statusClock > .3) {statusClock = 0; const txt = model.statusText(); if (desc.textContent !== txt) desc.textContent = txt;}});
     window.__projectViewers ??= {}; window.__projectViewers[panel.dataset.model] = {scene, camera, renderer, controls, draw};
   } catch (e) {
     stage.dataset.loaded = 'fallback'; desc.textContent = 'Still diagram shown. Interactive 3D is unavailable in this browser.';
